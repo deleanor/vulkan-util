@@ -12,6 +12,17 @@
 
 #include <cstdlib>
 
+struct QueueIndices
+{
+    std::optional< uint32_t > graphicsQueue;
+    std::optional< uint32_t > presentQueue;
+
+    bool isComplete() const
+    {
+        return graphicsQueue && presentQueue;
+    }
+};
+
 class MainApplication
 {
 public:
@@ -27,13 +38,16 @@ private:
     void createInstance();
     void selectPhysicalDevice();
     void createLogicalDevice();
+    void createSurface();
 
     // TODO: Following tutorial for now, but this is horrific software design.
     // these are basically global variables.
     VkInstance mInstance;
     VkPhysicalDevice mPhysicalDevice;
-    std::optional< uint32_t > mGraphicsQueueIndex;
+    QueueIndices mQueueIndices;
     VkDevice mLogicalDevice;
+    VkQueue mGraphicsQueue;
+    VkSurfaceKHR mSurface;
 
     GLFWwindow * mWindow;
 };

@@ -5,8 +5,8 @@
 
 namespace {
 
-const int WIDTH = 800;
-const int HEIGHT = 600;
+const int WIDTH = 1440;
+const int HEIGHT = 700;
 
 } // namespace
 
@@ -35,7 +35,9 @@ void MainApplication::initVulkan()
     // function causes a segfault, so something's corrupting
     // memory.
     createInstance();
+    createSurface();
     selectPhysicalDevice();
+    createLogicalDevice();
 }
 
 void MainApplication::createInstance()
@@ -101,19 +103,59 @@ void MainApplication::selectPhysicalDevice()
         std::cout << "Found queue family: " << property.queueCount;
         if ( property.queueFlags & VK_QUEUE_GRAPHICS_BIT ) {
             std::cout << " (supports graphics)";
-            if ( !mGraphicsQueueIndex ) mGraphicsQueueIndex = i;
+            if ( !mQueueIndices.graphicsQueue ) mQueueIndices.graphicsQueue = i;
+        }
+
+        VkBool32 presentSupport = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR( mPhysicalDevice, i, mSurface, &presentSupport );
+        if ( presentSupport ) {
+            std::cout << "(supports present)";
+            if ( !mQueueIndices.presentQueue ) mQueueIndices.presentQueue = i;
         }
         std::cout << std::endl;
     }
 
-    if ( !mGraphicsQueueIndex ) {
+    if ( !mQueueIndices.isComplete() ) {
         throw std::runtime_error( "Failed to find a queue family supporting graphics." );
     }
 }
 
 void MainApplication::createLogicalDevice()
 {
+    VkDeviceQueueCreateInfo queueCreateInfo;
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = mQueueIndices.graphicsQueue.value();
+    queueCreateInfo.queueCount = 1;
 
+    const float queuePriority = 1.0f;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+
+    VkPhysicalDeviceFeatures deviceFeatures = {};
+
+    VkDeviceCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+
+    createInfo.pQueueCreateInfos = &queueCreateInfo;
+    createInfo.queueCreateInfoCount = 1;
+
+    createInfo.pEnabledFeatures = &deviceFeatures;
+
+    createInfo.enabledExtensionCount = 0;
+
+    createInfo.enabledLayerCount = 0;
+
+    if ( vkCreateDevice( mPhysicalDevice, &createInfo, nullptr, &mLogicalDevice ) != VK_SUCCESS ) {
+        throw std::runtime_error( "Failed to create logical device" );
+    }
+    
+    vkGetDeviceQueue( mLogicalDevice, mQueueIndices.graphicsQueue.value(), 0, &mGraphicsQueue );
+}
+
+void MainApplication::createSurface()
+{
+    if ( glfwCreateWindowSurface( mInstance, mWindow, nullptr, &mSurface ) != VK_SUCCESS ) {
+        throw std::runtime_error( "Failed to create surface." );
+    }
 }
 
 void MainApplication::mainLoop()
