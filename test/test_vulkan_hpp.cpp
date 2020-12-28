@@ -1,5 +1,9 @@
 #include <vulkan/vulkan.hpp>
 
+#include <vkl/util.hpp>
+
+#include <GLFW/glfw3.h>
+
 #include <boost/qvm/vec.hpp>
 
 #include <algorithm>
@@ -7,11 +11,11 @@
 
 int main(int argc, char * argv[]) {
   try {
-    
+
+    glfwInit();
+
     // Create instance
-    vk::ApplicationInfo applicationInfo("test", 1, "test", 1, VK_API_VERSION_1_1);
-    vk::InstanceCreateInfo createInfo({}, &applicationInfo);
-    vk::UniqueInstance instance = vk::createInstanceUnique(createInfo);
+    vk::UniqueInstance instance = vkl::util::createInstance("test", "test");
 
     // Create physical device
     if (instance->enumeratePhysicalDevices().empty()) {
@@ -21,32 +25,40 @@ int main(int argc, char * argv[]) {
 
     vk::PhysicalDevice physicalDevice = instance->enumeratePhysicalDevices().front();
 
-    // Find a queue family that supports graphics.
-    const auto& queueFamilyPropertiesList = physicalDevice.getQueueFamilyProperties();
-    const auto queueFamilyIndex = std::distance(
-      queueFamilyPropertiesList.begin(),
-      std::find_if(queueFamilyPropertiesList.cbegin(), queueFamilyPropertiesList.cend(), [](const vk::QueueFamilyProperties& queueFamily) {
-        return queueFamily.queueFlags & vk::QueueFlagBits::eGraphics;
-      }));
-    
-    if (queueFamilyIndex == queueFamilyPropertiesList.size()) {
+    const auto graphicsQueueFamilyIndex = vkl::util::findGraphicsQueueFamilyIndex(physicalDevice);
+
+    if (!graphicsQueueFamilyIndex) {
       std::cout << "Graphics not supported." << std::endl;
       exit(1);
     }
 
     std::cout << "Found queue family supporting graphics on device " << physicalDevice.getProperties().deviceName << std::endl;
 
-    // Create the logical device.
-    constexpr float queuePriority = 0.0f;
-    vk::DeviceQueueCreateInfo queueCreateInfo(
-      vk::DeviceQueueCreateFlags(), queueFamilyIndex, 1, &queuePriority);
-    vk::UniqueDevice device = physicalDevice.createDeviceUnique(vk::DeviceCreateInfo(vk::DeviceCreateFlags(), queueCreateInfo));
+    const uint32_t width = 800;
+    const uint32_t height = 600;
+    GLFWwindow * window = glfwCreateWindow(width, height, "test", nullptr, nullptr);
+    vk::UniqueSurfaceKHR surface;
+    {
+      VkSurfaceKHR surface_;
+      glfwCreateWindowSurface(VkInstance(instance.get()), window, nullptr, &surface_);
+      vk::ObjectDestroy<vk::Instance, VULKAN_HPP_DEFAULT_DISPATCHER_TYPE> deleter_(instance.get());
+      surface = vk::UniqueSurfaceKHR( vk::SurfaceKHR(surface_), deleter_);
+    }
 
+    const auto presentQueueFamilyIndex = vkl::util::findPresentQueueFamilyIndex(
+      physicalDevice, surface, *graphicsQueueFamilyIndex);
+
+    if (!presentQueueFamilyIndex) {
+      throw std::runtime_error("Unable to locate a queue supporting present.");
+    }
+
+    // Create the logical device.
+    vk::UniqueDevice device = vkl::util::createLogicalDevice(physicalDevice, *graphicsQueueFamilyIndex);
     std::cout << "Device created." << std::endl;
 
     // Initialize command buffers.
     vk::UniqueCommandPool commandPool = device->createCommandPoolUnique(
-      vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlags(), queueFamilyIndex));
+      vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlags(), *graphicsQueueFamilyIndex));
     vk::UniqueCommandBuffer commandBuffer =
       std::move(device->allocateCommandBuffersUnique(
         vk::CommandBufferAllocateInfo(commandPool.get(), vk::CommandBufferLevel::ePrimary, 1)).front());

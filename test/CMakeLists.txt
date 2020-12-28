@@ -8,4 +8,5 @@ target_link_libraries( test_instance vkl )
 
 add_executable( test_vulkan_hpp test_vulkan_hpp.cpp )
 target_include_directories(test_vulkan_hpp PRIVATE ${BOOST_INCLUDE_DIRS})
-target_link_libraries(test_vulkan_hpp PRIVATE Vulkan::Vulkan)
+target_link_libraries(test_vulkan_hpp PRIVATE vkl)
+set_target_properties(test_vulkan_hpp PROPERTIES CXX_STANDARD 20)
