@@ -88,19 +88,11 @@ findPresentQueueFamilyIndex(const vk::PhysicalDevice &physicalDevice,
 
 vk::SwapchainKHR createSwapchain(const vk::PhysicalDevice &physicalDevice,
                                        const vk::UniqueDevice& device,
+                                       const vk::Format& format,
                                        const vk::UniqueSurfaceKHR &surface,
                                        const WindowExtents& windowExtents,
                                        uint64_t graphicsQueueFamilyIndex,
                                        uint64_t presentQueueFamilyIndex) {
-  const std::vector<vk::SurfaceFormatKHR> formats =
-      physicalDevice.getSurfaceFormatsKHR(surface.get());
-  if (formats.empty()) {
-    throw std::runtime_error("Physical device doesn't support any formats.");
-  }
-  const vk::Format format = formats[0].format == vk::Format::eUndefined
-                                ? vk::Format::eB8G8R8A8Unorm
-                                : formats[0].format;
-
   const vk::SurfaceCapabilitiesKHR surfaceCapabilities =
     physicalDevice.getSurfaceCapabilitiesKHR(surface.get());
   const VkExtent2D extent = createSwapchainExtent(surfaceCapabilities, windowExtents);

@@ -28,6 +28,7 @@ struct WindowExtents
 vk::SwapchainKHR createSwapchain(
   const vk::PhysicalDevice& physicalDevice,
   const vk::UniqueDevice& device,
+  const vk::Format& format,
   const vk::UniqueSurfaceKHR& surface,
   const WindowExtents& windowExtents,
   uint64_t graphicsQueueFamilyIndex,

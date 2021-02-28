@@ -56,15 +56,56 @@ int main(int argc, char * argv[]) {
     vk::UniqueCommandBuffer commandBuffer =
       std::move(device->allocateCommandBuffersUnique(
         vk::CommandBufferAllocateInfo(commandPool.get(), vk::CommandBufferLevel::ePrimary, 1)).front());
+  
+    const std::vector<vk::SurfaceFormatKHR> formats =
+        physicalDevice.getSurfaceFormatsKHR(surface.get());
+    if (formats.empty()) {
+      throw std::runtime_error("Physical device doesn't support any formats.");
+    }
+  
+    const vk::Format format = formats[0].format == vk::Format::eUndefined
+                                ? vk::Format::eB8G8R8A8Unorm
+                                : formats[0].format;
 
     vk::SwapchainKHR swapchain = vkl::util::createSwapchain(
       physicalDevice,
       device,
+      format,
       surface,
       windowExtents,
       graphicsQueueFamilyIndex.value(),
       presentQueueFamilyIndex.value()
     );
+
+    const std::vector<vk::Image> swapchainImages = device->getSwapchainImagesKHR(swapchain);
+
+    std::vector<vk::ImageView> imageViews;
+    imageViews.reserve(swapchainImages.size());
+    vk::ComponentMapping componentMapping(
+      vk::ComponentSwizzle::eR,
+      vk::ComponentSwizzle::eG,
+      vk::ComponentSwizzle::eB,
+      vk::ComponentSwizzle::eA
+    );
+    vk::ImageSubresourceRange subResourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
+    for (auto image : swapchainImages) {
+      vk::ImageViewCreateInfo imageViewCreateInfo(
+        vk::ImageViewCreateFlags(),
+        image,
+        vk::ImageViewType::e2D,
+        format,
+        componentMapping,
+        subResourceRange
+      );
+      imageViews.push_back(device->createImageView(imageViewCreateInfo));
+    }
+
+    // Free resources
+    // TODO RAII
+    device->destroySwapchainKHR(swapchain);
+    instance->destroySurfaceKHR(surface.get());
+    device->destroy();
+    instance->destroy();
 
     return 0;
   } catch (const vk::SystemError& error) {
