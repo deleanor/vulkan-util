@@ -19,6 +19,18 @@ findPresentQueueFamilyIndex(const vk::PhysicalDevice &physicalDevice,
                             const vk::UniqueSurfaceKHR &surface,
                             std::int64_t graphicsQueueFamilyIndex);
 
-vk::UniqueSwapchainKHR createSwapchain(const vk::PhysicalDevice& physicalDevice, const vk::UniqueSurfaceKHR& surface);
+struct WindowExtents
+{
+  int width;
+  int height;
+};
+
+vk::SwapchainKHR createSwapchain(
+  const vk::PhysicalDevice& physicalDevice,
+  const vk::UniqueDevice& device,
+  const vk::UniqueSurfaceKHR& surface,
+  const WindowExtents& windowExtents,
+  uint64_t graphicsQueueFamilyIndex,
+  uint64_t presentQueueFamilyIndex);
 
 } // namespace vkl::util

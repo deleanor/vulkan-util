@@ -1,5 +1,6 @@
 #include <vulkan/vulkan.hpp>
 
+#include <vkl/glfwUtil.hpp>
 #include <vkl/util.hpp>
 
 #include <GLFW/glfw3.h>
@@ -34,16 +35,9 @@ int main(int argc, char * argv[]) {
 
     std::cout << "Found queue family supporting graphics on device " << physicalDevice.getProperties().deviceName << std::endl;
 
-    const uint32_t width = 800;
-    const uint32_t height = 600;
-    GLFWwindow * window = glfwCreateWindow(width, height, "test", nullptr, nullptr);
-    vk::UniqueSurfaceKHR surface;
-    {
-      VkSurfaceKHR surface_;
-      glfwCreateWindowSurface(VkInstance(instance.get()), window, nullptr, &surface_);
-      vk::ObjectDestroy<vk::Instance, VULKAN_HPP_DEFAULT_DISPATCHER_TYPE> deleter_(instance.get());
-      surface = vk::UniqueSurfaceKHR( vk::SurfaceKHR(surface_), deleter_);
-    }
+    const vkl::util::WindowExtents windowExtents{ 800, 600 };
+    GLFWwindow * window = glfwCreateWindow(windowExtents.width, windowExtents.height, "test", nullptr, nullptr);
+    vk::UniqueSurfaceKHR surface = vkl::glfwUtil::createSurface(instance, window);
 
     const auto presentQueueFamilyIndex = vkl::util::findPresentQueueFamilyIndex(
       physicalDevice, surface, *graphicsQueueFamilyIndex);
@@ -62,6 +56,15 @@ int main(int argc, char * argv[]) {
     vk::UniqueCommandBuffer commandBuffer =
       std::move(device->allocateCommandBuffersUnique(
         vk::CommandBufferAllocateInfo(commandPool.get(), vk::CommandBufferLevel::ePrimary, 1)).front());
+
+    vk::SwapchainKHR swapchain = vkl::util::createSwapchain(
+      physicalDevice,
+      device,
+      surface,
+      windowExtents,
+      graphicsQueueFamilyIndex.value(),
+      presentQueueFamilyIndex.value()
+    );
 
     return 0;
   } catch (const vk::SystemError& error) {
